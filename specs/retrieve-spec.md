@@ -45,7 +45,13 @@ Results should be ordered from most to least relevant (lowest to highest distanc
 *Describe how you will use `_collection.query()` to find relevant chunks. What arguments will you pass, and why?*
 
 ```
-[your answer here]
+Call _collection.query() with:
+  - query_texts: [query]  — list containing the single query string
+  - n_results: n_results  — how many chunks to return
+  - include: ["documents", "metadatas", "distances"]
+    * documents → chunk text (maps to "text")
+    * metadatas → dicts with "game" key (maps to "game")
+    * distances → cosine distance scores (maps to "distance")
 ```
 
 ---
@@ -55,7 +61,11 @@ Results should be ordered from most to least relevant (lowest to highest distanc
 *Sketch out what one item in your return list looks like as a concrete example. Where does each field come from in the query results?*
 
 ```
-[your answer here]
+{
+  "text":     results["documents"][0][i],   # the chunk text
+  "game":     results["metadatas"][0][i]["game"],  # from stored metadata
+  "distance": results["distances"][0][i],   # cosine distance score
+}
 ```
 
 ---
@@ -65,7 +75,11 @@ Results should be ordered from most to least relevant (lowest to highest distanc
 *`_collection.query()` returns nested lists. Describe what index you need to access to get the actual list of results for a single query, and why the nesting exists.*
 
 ```
-[your answer here]
+Use index [0] on each field (documents[0], metadatas[0], distances[0]).
+
+The nesting exists because query_texts accepts a list — you could send
+multiple queries at once and get back one result list per query. Since
+we only ever send one query, [0] gives us that single query's results.
 ```
 
 ---
@@ -75,7 +89,17 @@ Results should be ordered from most to least relevant (lowest to highest distanc
 *Will you filter out results above a certain distance score, or return all `n_results` regardless of how relevant they are? What are the tradeoffs of each approach?*
 
 ```
-[your answer here]
+Filter out chunks with distance > 0.5 (as noted in system-design.md).
+
+Tradeoffs:
+  - Filtering: cleaner context, less noise for the LLM, but too tight a
+    threshold can drop relevant chunks and leave generate_response() with
+    nothing useful.
+  - No filtering: guarantees context is always present, but weak matches
+    can confuse the LLM into generating answers not grounded in the rules.
+
+generate_response() handles the "nothing found" case when filtering
+empties the list.
 ```
 
 ---
@@ -85,7 +109,16 @@ Results should be ordered from most to least relevant (lowest to highest distanc
 *How does your implementation behave when: (a) the collection is empty, (b) the query matches no chunks well, (c) the query matches chunks from multiple games?*
 
 ```
-[your answer here]
+(a) Collection empty: early return [] before calling query() — already
+    in the stub at retriever.py:68-69.
+
+(b) No good matches: after distance filtering, list may be empty.
+    retrieve() returns [] and generate_response() tells the user.
+    retrieve() itself does not message the user.
+
+(c) Multi-game results: return all top results as-is, ranked by distance.
+    retrieve() does not filter by game — that's attribution work for
+    generate_response().
 ```
 
 ---

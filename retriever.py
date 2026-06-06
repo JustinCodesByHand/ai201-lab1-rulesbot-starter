@@ -55,7 +55,7 @@ def retrieve(query, n_results=N_RESULTS):
     Use _collection.query() to run a semantic search. It takes:
       - query_texts : a list containing your query string
       - n_results   : how many results to return
-      - include     : what to return — use ["documents", "metadatas", "distances"]
+      - include     : what to return — use []
 
     Return a list of dicts, each with:
       - "text"     : the chunk text
@@ -69,4 +69,29 @@ def retrieve(query, n_results=N_RESULTS):
         return []
 
     # Your implementation here.
-    return []
+
+    results = _collection.query(
+        query_texts = [query],
+        n_results = n_results,
+        include=["metadatas",
+            "documents",
+            "distances",]
+    )
+   
+    
+    docs = results["documents"][0]
+    metas = results["metadatas"][0]
+    dists = results["distances"][0]
+
+
+    chunks = [
+    {"text": doc, "game": meta["game"], "distance": dist}
+    for doc, meta, dist in zip(docs, metas, dists)
+    if dist <= 0.5
+    ]
+
+    for chunk in chunks:
+        print(f"[{chunk['game']}] (dist: {chunk['distance']:.3f}) {chunk['text'][:80]}...")
+
+    return chunks
+

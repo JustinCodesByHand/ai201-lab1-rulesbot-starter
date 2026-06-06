@@ -42,7 +42,18 @@ Returns a fallback string (not an error) when `retrieved_chunks` is empty.
 *How will you format the retrieved chunks before passing them to the LLM? Describe the structure — not the code. Consider: will you label chunks by game? Include distance scores? Separate chunks with delimiters?*
 
 ```
-[your answer here]
+Each chunk gets an indexed label header with game name, followed by chunk text.
+One blank line between chunks.
+
+Example:
+[1] (Catan)
+When a 7 is rolled, no one collects resources...
+
+[2] (Catan)
+The robber must be moved to a different terrain hex...
+
+Game name comes from chunk["game"]. Index is 1-based position in the list.
+Distance scores not included — not useful to the model.
 ```
 
 ---
@@ -52,7 +63,8 @@ Returns a fallback string (not an error) when `retrieved_chunks` is empty.
 *Write the exact system prompt instruction you will use to prevent the model from answering beyond the retrieved text. This is the most important design decision in this function.*
 
 ```
-[your answer here]
+Answer using only the rule text provided below. If the answer is not in the text,
+say so clearly — do not guess or draw on outside knowledge.
 ```
 
 ---
@@ -62,7 +74,7 @@ Returns a fallback string (not an error) when `retrieved_chunks` is empty.
 *Write the exact instruction you will use to tell the model to identify which game its answer comes from.*
 
 ```
-[your answer here]
+State which game your answer comes from, using the game name shown in the chunk label.
 ```
 
 ---
@@ -72,7 +84,9 @@ Returns a fallback string (not an error) when `retrieved_chunks` is empty.
 *What should the response say when the answer isn't found in the loaded rule books? Write the exact fallback message.*
 
 ```
-[your answer here]
+Keep the existing fallback from the stub (generator.py:32-36):
+"I couldn't find anything relevant in the loaded rule books.
+Try rephrasing your question — or check that your ingestion pipeline is working."
 ```
 
 ---
@@ -82,7 +96,8 @@ Returns a fallback string (not an error) when `retrieved_chunks` is empty.
 *`retrieved_chunks` may include chunks with high distance scores (weak relevance). Will you filter these out before building context, pass them all in, or handle them another way? What are the tradeoffs?*
 
 ```
-[your answer here]
+Pass all chunks through — no second filter. retrieve() already gates at distance <= 0.5.
+Double-filtering risks leaving too little context for a useful answer.
 ```
 
 ---
@@ -92,7 +107,20 @@ Returns a fallback string (not an error) when `retrieved_chunks` is empty.
 *Describe how you will structure the messages list for the API call — what goes in the system message vs. the user message?*
 
 ```
-[your answer here]
+system: grounding instruction + citation instruction (how to behave)
+
+user:   formatted context block (all chunks labeled [N] (Game))
+        followed by the question
+
+Example user message:
+  Context:
+  [1] (Catan)
+  When a 7 is rolled...
+
+  [2] (Catan)
+  The robber must be moved...
+
+  Question: What happens when you roll a 7?
 ```
 
 ---
